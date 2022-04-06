@@ -1,1 +1,8 @@
+type ProductView {
+    slug: String
+    count: Int
+}
 
+type Query {
+    productList(topN: Int): [ProductView]
+}

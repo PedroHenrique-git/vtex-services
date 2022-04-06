@@ -1,16 +1,16 @@
 import {
-  LRUCache,
-  Service,
-  ServiceContext,
-  ParamsContext,
-  RecorderState,
-  method,
-} from '@vtex/api'
-import { Clients } from './clients'
-import { analytics } from './handlers/analytics'
+  LRUCache, method, ParamsContext,
+  RecorderState, Service,
+  ServiceContext
+} from '@vtex/api';
+import { Clients } from './clients';
+import { updateLiveUsers } from './event/liveUsersUpdate';
+import { analytics } from './handlers/analytics';
+import productList from './resolvers/product';
 
-// Create a LRU memory cache for the Status client.
-// The @vtex/api HttpClient respects Cache-Control headers and uses the provided cache.
+const THREE_SECONDS_MS = 3 * 1000
+const CONCURRENCY = 10
+
 const memoryCache = new LRUCache<string, any>({ max: 5000 })
 metrics.trackCache('status', memoryCache)
 
@@ -30,6 +30,14 @@ export default new Service<Clients, State, ParamsContext>({
         retries: 2,
         timeout: 10000,
       },
+      events:  {
+        exponentialTimeoutCoefficient: 2,
+        exponentialBackoffCoefficient: 2,
+        initialBackoffDelay: 50,
+        retries: 1,
+        timeout: THREE_SECONDS_MS,
+        concurrency: CONCURRENCY,
+      }
     },
   },
   routes: {
@@ -37,4 +45,14 @@ export default new Service<Clients, State, ParamsContext>({
       GET: [analytics],
     }),
   },
+  events: {
+    liveUserUpdate: updateLiveUsers,
+  },
+  graphql: {
+    resolvers: {
+      Query: {
+        productList
+      }
+    }
+  }
 })
